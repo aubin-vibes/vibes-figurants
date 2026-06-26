@@ -26,6 +26,7 @@ export default function Admin() {
   const [instrEdit, setInstrEdit] = useState(null); // id du projet en cours d'édition
   const [instrText, setInstrText] = useState('');
   const [instrSaving, setInstrSaving] = useState(false);
+  const [sendingId, setSendingId] = useState(null); // figurant dont le mail est en cours d'envoi
 
   useEffect(() => {
     let sub;
@@ -75,6 +76,20 @@ export default function Admin() {
     if (error) { flash('Erreur : ' + error.message); return; }
     setProjects((arr) => arr.map((x) => (x.id === p.id ? { ...x, instructions: instrText || null } : x)));
     setInstrEdit(null); flash('Instructions enregistrées');
+  }
+
+  async function resendMail(rec) {
+    if (!rec.email) { flash("Pas d'email pour cette personne"); return; }
+    setSendingId(rec.id);
+    try {
+      const res = await fetch('/api/confirm', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: rec.id }),
+      });
+      const j = await res.json().catch(() => ({}));
+      flash(j.ok ? 'Mail envoyé ✓' : "Échec de l'envoi");
+    } catch (_) { flash("Échec de l'envoi"); }
+    setSendingId(null);
   }
 
   async function togglePresent(rec) {
@@ -200,6 +215,7 @@ export default function Admin() {
                   <button className={'pres' + (r.present ? ' here' : '')} onClick={() => togglePresent(r)}>{r.present ? '✓ Présent·e' : 'Marquer présent·e'}</button>
                   <button className="iconbtn" onClick={() => setModal(r)}>Signature</button>
                   <button className="iconbtn pdf" onClick={() => downloadOne(r, currentProject || projects.find((p) => p.id === r.project_id))}>PDF</button>
+                  <button className="iconbtn mail" disabled={sendingId === r.id} onClick={() => resendMail(r)}>{sendingId === r.id ? '…' : '✉ Mail'}</button>
                 </div>
               </div>
             ))}

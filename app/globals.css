@@ -105,6 +105,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .pres.here{background:var(--turq);color:#0A0A09;border-color:var(--turq);}
 .iconbtn{padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:13px;cursor:pointer;white-space:nowrap;}
 .iconbtn.pdf{border-color:var(--turq);color:var(--turq);}
+.iconbtn.mail{border-color:#4A4A46;}
+.iconbtn:disabled{opacity:.5;cursor:default;}
 .empty{text-align:center;color:var(--muted);padding:50px 0;font-size:14px;}
 .note{font-size:11.5px;color:var(--muted);text-align:center;margin-top:24px;line-height:1.5;border-top:1px solid var(--line);padding-top:16px;}.note b{color:var(--turq);}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
