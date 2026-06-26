@@ -37,12 +37,14 @@ create table if not exists figurants (
   present            boolean default false,
   photo_only         boolean default false,  -- profil ajouté dans l'onglet Photo, SANS autorisation droit à l'image
   photo_note         text,                   -- signe distinctif / contexte pour identifier la personne
+  photographed       boolean default false,  -- la personne a bien été photographiée (onglet Photo)
   created_at         timestamptz default now()
 );
 
 -- Si la table existe déjà :
 alter table figurants add column if not exists photo_only boolean default false;
 alter table figurants add column if not exists photo_note text;
+alter table figurants add column if not exists photographed boolean default false;
 
 create index if not exists figurants_project_idx on figurants(project_id);
 

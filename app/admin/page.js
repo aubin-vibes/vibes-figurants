@@ -129,6 +129,11 @@ export default function Admin() {
     setFigurants((arr) => arr.map((x) => (x.id === rec.id ? { ...x, present: !x.present } : x)));
   }
 
+  async function togglePhotographed(rec) {
+    await supabase.from('figurants').update({ photographed: !rec.photographed }).eq('id', rec.id);
+    setFigurants((arr) => arr.map((x) => (x.id === rec.id ? { ...x, photographed: !x.photographed } : x)));
+  }
+
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   function copyLink(slug) {
     const link = origin + '/signer/' + slug;
@@ -144,17 +149,17 @@ export default function Admin() {
     return r.slice().sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
   }, [figurants, filterSlug, currentProject, search]);
 
-  // Photo : TOUTES les personnes (formulaire complété + ajouts manuels) du projet sélectionné.
+  // Photo : profils ajoutés manuellement (photo_only) OU présents confirmés dans le Suivi.
   const photoProject = useMemo(() => projects.find((p) => p.slug === photoSlug) || null, [projects, photoSlug]);
   const photoRows = useMemo(() => {
-    const r = figurants.filter((x) => photoSlug === '__all' || x.project_id === (photoProject && photoProject.id));
+    const r = figurants.filter((x) => (x.photo_only || x.present) && (photoSlug === '__all' || x.project_id === (photoProject && photoProject.id)));
     return r.slice().sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
   }, [figurants, photoSlug, photoProject]);
 
   if (!ready) return <div className="wrap"><p className="sub" style={{ marginTop: 40 }}>Chargement…</p></div>;
 
   const total = rows.length, present = rows.filter((r) => r.present).length, minors = rows.filter((r) => r.is_minor).length;
-  const photoTotal = photoRows.length, photoAuth = photoRows.filter((r) => !r.photo_only).length, photoNoAuth = photoTotal - photoAuth;
+  const photoDone = photoRows.filter((r) => r.photographed).length, photoTodo = photoRows.length - photoDone;
 
   return (
     <>
@@ -280,12 +285,11 @@ export default function Admin() {
                 </select>
               </div>
             </div>
-            <div className="sub">Recense toutes les personnes photographiées : celles ayant rempli le formulaire (avec autorisation) et celles ajoutées à la main (sans autorisation de droit à l&apos;image).</div>
+            <div className="sub">Les personnes à photographier : celles ajoutées à la main, et celles marquées présentes dans le Suivi.</div>
 
-            <div className="stats" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-              <div className="stat"><div className="n">{photoTotal}</div><div className="l">Photographiés</div></div>
-              <div className="stat ok"><div className="n">{photoAuth}</div><div className="l">Avec autorisation</div></div>
-              <div className="stat warn"><div className="n">{photoNoAuth}</div><div className="l">Sans autorisation</div></div>
+            <div className="stats" style={{ gridTemplateColumns: 'repeat(2,1fr)' }}>
+              <div className="stat warn"><div className="n">{photoTodo}</div><div className="l">À photographier</div></div>
+              <div className="stat ok"><div className="n">{photoDone}</div><div className="l">Photographiées</div></div>
             </div>
 
             {!showPhotoAdd && <button className="btn-prim" style={{ marginBottom: 16 }} onClick={() => { setPpErr(''); setShowPhotoAdd(true); }}>+ Ajouter une personne</button>}
@@ -319,7 +323,7 @@ export default function Admin() {
                 </div>
                 {(r.phone || r.photo_note) && <div className="meta">{r.phone && <span>{r.phone}</span>}{r.photo_note && <span>{r.photo_note}</span>}</div>}
                 <div className="actions">
-                  {!r.photo_only && r.signature && <button className="iconbtn" onClick={() => setModal(r)}>Signature</button>}
+                  <button className={'pres' + (r.photographed ? ' here' : '')} onClick={() => togglePhotographed(r)}>{r.photographed ? '✓ Photographié·e' : 'Marquer photographié·e'}</button>
                   <button className="iconbtn del" onClick={() => deleteFigurant(r)} title="Supprimer">🗑 Supprimer</button>
                 </div>
               </div>
