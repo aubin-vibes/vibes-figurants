@@ -99,6 +99,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .role.danseur{background:rgba(0,255,210,.14);color:var(--turq);}
 .role.figurant{background:rgba(138,138,133,.18);color:var(--muted);}
 .minorbadge{font-size:10px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:5px;padding:1px 6px;}
+.authbadge{font-size:10px;font-weight:700;color:var(--turq);border:1px solid var(--turq);border-radius:5px;padding:1px 6px;}
+.noauthbadge{font-size:10px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:5px;padding:1px 6px;}
 .pcard .meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;}
 .pcard .meta b{color:var(--text);}
 .pcard .actions{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap;}

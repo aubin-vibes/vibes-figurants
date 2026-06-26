@@ -35,8 +35,14 @@ create table if not exists figurants (
   guardian_phone     text,
   guardian_signature text,
   present            boolean default false,
+  photo_only         boolean default false,  -- profil ajouté dans l'onglet Photo, SANS autorisation droit à l'image
+  photo_note         text,                   -- signe distinctif / contexte pour identifier la personne
   created_at         timestamptz default now()
 );
+
+-- Si la table existe déjà :
+alter table figurants add column if not exists photo_only boolean default false;
+alter table figurants add column if not exists photo_note text;
 
 create index if not exists figurants_project_idx on figurants(project_id);
 

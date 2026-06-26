@@ -27,6 +27,12 @@ export default function Admin() {
   const [instrText, setInstrText] = useState('');
   const [instrSaving, setInstrSaving] = useState(false);
   const [sendingId, setSendingId] = useState(null); // figurant dont le mail est en cours d'envoi
+  // onglet Photo
+  const [photoSlug, setPhotoSlug] = useState('__all');
+  const [showPhotoAdd, setShowPhotoAdd] = useState(false);
+  const [pp, setPp] = useState({ first_name: '', last_name: '', role: 'Figurant', phone: '', note: '' });
+  const [ppErr, setPpErr] = useState('');
+  const [ppSaving, setPpSaving] = useState(false);
 
   useEffect(() => {
     let sub;
@@ -78,6 +84,23 @@ export default function Admin() {
     setInstrEdit(null); flash('Instructions enregistrées');
   }
 
+  async function addPhotoPerson() {
+    setPpErr('');
+    const fn = pp.first_name.trim(), ln = pp.last_name.trim();
+    if (!fn || !ln) return setPpErr('Prénom et nom obligatoires.');
+    const proj = projects.find((p) => p.slug === photoSlug);
+    if (!proj) return setPpErr('Choisis d’abord un projet auquel rattacher la personne.');
+    setPpSaving(true);
+    const { error } = await supabase.from('figurants').insert({
+      project_id: proj.id, role: pp.role, first_name: fn, last_name: ln,
+      phone: pp.phone || null, photo_note: pp.note || null, photo_only: true, present: false,
+    });
+    setPpSaving(false);
+    if (error) return setPpErr('Erreur : ' + error.message);
+    setPp({ first_name: '', last_name: '', role: 'Figurant', phone: '', note: '' });
+    setShowPhotoAdd(false); flash('Personne ajoutée'); await refresh();
+  }
+
   async function deleteFigurant(rec) {
     if (!window.confirm(`Supprimer définitivement ${rec.first_name} ${rec.last_name} ?\nCette action est irréversible (autorisation et signature perdues).`)) return;
     const { error } = await supabase.from('figurants').delete().eq('id', rec.id);
@@ -113,16 +136,25 @@ export default function Admin() {
   }
 
   const currentProject = useMemo(() => projects.find((p) => p.slug === filterSlug) || null, [projects, filterSlug]);
+  // Suivi : uniquement les vraies autorisations signées (on exclut les profils ajoutés dans l'onglet Photo).
   const rows = useMemo(() => {
-    let r = figurants.filter((x) => filterSlug === '__all' || x.project_id === (currentProject && currentProject.id));
+    let r = figurants.filter((x) => !x.photo_only && (filterSlug === '__all' || x.project_id === (currentProject && currentProject.id)));
     const q = search.toLowerCase().trim();
     if (q) r = r.filter((x) => (x.first_name + ' ' + x.last_name).toLowerCase().includes(q));
     return r.slice().sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
   }, [figurants, filterSlug, currentProject, search]);
 
+  // Photo : TOUTES les personnes (formulaire complété + ajouts manuels) du projet sélectionné.
+  const photoProject = useMemo(() => projects.find((p) => p.slug === photoSlug) || null, [projects, photoSlug]);
+  const photoRows = useMemo(() => {
+    const r = figurants.filter((x) => photoSlug === '__all' || x.project_id === (photoProject && photoProject.id));
+    return r.slice().sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
+  }, [figurants, photoSlug, photoProject]);
+
   if (!ready) return <div className="wrap"><p className="sub" style={{ marginTop: 40 }}>Chargement…</p></div>;
 
   const total = rows.length, present = rows.filter((r) => r.present).length, minors = rows.filter((r) => r.is_minor).length;
+  const photoTotal = photoRows.length, photoAuth = photoRows.filter((r) => !r.photo_only).length, photoNoAuth = photoTotal - photoAuth;
 
   return (
     <>
@@ -131,6 +163,7 @@ export default function Admin() {
         <div className="tabs">
           <button className={'tab' + (tab === 'projets' ? ' active' : '')} onClick={() => setTab('projets')}>Projets</button>
           <button className={'tab' + (tab === 'suivi' ? ' active' : '')} onClick={() => setTab('suivi')}>Suivi</button>
+          <button className={'tab' + (tab === 'photo' ? ' active' : '')} onClick={() => setTab('photo')}>Photo</button>
           <button className="logout" onClick={async () => { await supabase.auth.signOut(); router.replace('/admin/login'); }}>Déconnexion</button>
         </div>
       </div>
@@ -233,6 +266,65 @@ export default function Admin() {
               </div>
             ))}
             <div className="note">Données privées, accessibles uniquement après connexion (toi & Ange). <b>Sécurité RLS</b> activée côté base.</div>
+          </>
+        )}
+
+        {tab === 'photo' && (
+          <>
+            <div className="dhead">
+              <div className="dhead-title">Photo</div>
+              <div className="projsel">
+                <select value={photoSlug} onChange={(e) => { setPhotoSlug(e.target.value); setShowPhotoAdd(false); }}>
+                  <option value="__all">Tous les projets</option>
+                  {projects.map((p) => <option key={p.id} value={p.slug}>{p.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="sub">Recense toutes les personnes photographiées : celles ayant rempli le formulaire (avec autorisation) et celles ajoutées à la main (sans autorisation de droit à l&apos;image).</div>
+
+            <div className="stats" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+              <div className="stat"><div className="n">{photoTotal}</div><div className="l">Photographiés</div></div>
+              <div className="stat ok"><div className="n">{photoAuth}</div><div className="l">Avec autorisation</div></div>
+              <div className="stat warn"><div className="n">{photoNoAuth}</div><div className="l">Sans autorisation</div></div>
+            </div>
+
+            {!showPhotoAdd && <button className="btn-prim" style={{ marginBottom: 16 }} onClick={() => { setPpErr(''); setShowPhotoAdd(true); }}>+ Ajouter une personne</button>}
+            {showPhotoAdd && (
+              <div className="createbox">
+                <h3>Ajouter une personne (sans autorisation)</h3>
+                <div className="linkprev" style={{ marginBottom: 10 }}>{photoProject ? <>Rattachée au projet <b style={{ color: 'var(--turq)' }}>{photoProject.name}</b>. </> : <><b style={{ color: 'var(--warn)' }}>⚠ Sélectionne d&apos;abord un projet ci-dessus.</b> </>}Ce profil n&apos;apparaît que dans l&apos;onglet Photo.</div>
+                <div className="row2">
+                  <div className="field"><label className="lab">Prénom <span className="req">*</span></label><input value={pp.first_name} onChange={(e) => setPp({ ...pp, first_name: e.target.value })} /></div>
+                  <div className="field"><label className="lab">Nom <span className="req">*</span></label><input value={pp.last_name} onChange={(e) => setPp({ ...pp, last_name: e.target.value })} /></div>
+                </div>
+                <div className="row2">
+                  <div className="field"><label className="lab">Rôle</label><select value={pp.role} onChange={(e) => setPp({ ...pp, role: e.target.value })}><option>Figurant</option><option>Danseur</option><option>Autre</option></select></div>
+                  <div className="field"><label className="lab">Téléphone</label><input type="tel" value={pp.phone} onChange={(e) => setPp({ ...pp, phone: e.target.value })} /></div>
+                </div>
+                <div className="field"><label className="lab">Signe distinctif / note (pour l&apos;identifier)</label><textarea value={pp.note} onChange={(e) => setPp({ ...pp, note: e.target.value })} placeholder="ex. chemise rouge, sur la scène du bar, rang 2…" /></div>
+                <button className="btn-prim" disabled={ppSaving} onClick={addPhotoPerson}>{ppSaving ? 'Ajout…' : 'Ajouter la personne'}</button>
+                <button className="backlink" onClick={() => setShowPhotoAdd(false)}>Annuler</button>
+                {ppErr && <div className="err">{ppErr}</div>}
+              </div>
+            )}
+
+            {photoRows.length === 0 ? (
+              <div className="empty">Personne pour le moment.<br />Les inscriptions au formulaire apparaissent ici, et tu peux ajouter des profils à la main.</div>
+            ) : photoRows.map((r) => (
+              <div className="pcard" key={r.id}>
+                <div className="top">
+                  <span className="nm">{r.first_name} {r.last_name}</span>
+                  <span className={'role ' + (r.role || '').toLowerCase()}>{r.role}</span>
+                  {r.photo_only ? <span className="noauthbadge">SANS AUTORISATION</span> : <span className="authbadge">AUTORISATION ✓</span>}
+                </div>
+                {(r.phone || r.photo_note) && <div className="meta">{r.phone && <span>{r.phone}</span>}{r.photo_note && <span>{r.photo_note}</span>}</div>}
+                <div className="actions">
+                  {!r.photo_only && r.signature && <button className="iconbtn" onClick={() => setModal(r)}>Signature</button>}
+                  <button className="iconbtn del" onClick={() => deleteFigurant(r)} title="Supprimer">🗑 Supprimer</button>
+                </div>
+              </div>
+            ))}
+            <div className="note">L&apos;ajout manuel sans autorisation est réservé à cet onglet. Ces profils n&apos;apparaissent pas dans le Suivi ni dans les exports d&apos;autorisations.</div>
           </>
         )}
       </div>
