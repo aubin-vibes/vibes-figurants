@@ -324,7 +324,7 @@ export default function Admin() {
                 {(r.phone || r.photo_note) && <div className="meta">{r.phone && <span>{r.phone}</span>}{r.photo_note && <span>{r.photo_note}</span>}</div>}
                 <div className="actions">
                   <button className={'pres' + (r.photographed ? ' here' : '')} onClick={() => togglePhotographed(r)}>{r.photographed ? '✓ Photographié·e' : 'Marquer photographié·e'}</button>
-                  <button className="iconbtn del" onClick={() => deleteFigurant(r)} title="Supprimer">🗑 Supprimer</button>
+                  {r.photo_only && <button className="iconbtn del" onClick={() => deleteFigurant(r)} title="Supprimer">🗑 Supprimer</button>}
                 </div>
               </div>
             ))}
