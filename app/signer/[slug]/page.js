@@ -11,7 +11,7 @@ export default function SignerPage() {
   const { slug } = useParams();
   const [project, setProject] = useState(undefined); // undefined = loading, null = not found
   const [role, setRole] = useState('Figurant');
-  const [f, setF] = useState({ first_name: '', last_name: '', dob: '', email: '', phone: '', g_name: '', g_relation: '', g_phone: '' });
+  const [f, setF] = useState({ first_name: '', last_name: '', dob: '', email: '', phone: '', extra_info: '', g_name: '', g_relation: '', g_phone: '' });
   const [consent, setConsent] = useState(false);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
@@ -26,7 +26,7 @@ export default function SignerPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('projects').select('id,name,slug,shoot_date,location').eq('slug', slug).maybeSingle();
+      const { data } = await supabase.from('projects').select('id,name,slug,shoot_date,location,presentation').eq('slug', slug).maybeSingle();
       setProject(data || null);
     })();
   }, [slug]);
@@ -50,7 +50,7 @@ export default function SignerPage() {
     }
     setPreview({
       role, first_name: f.first_name, last_name: f.last_name, dob: f.dob, is_minor: minor,
-      email: f.email, phone: f.phone, signature: sig.current.getData(), ...g,
+      email: f.email, phone: f.phone, extra_info: f.extra_info, signature: sig.current.getData(), ...g,
     });
     setStep('review');
     window.scrollTo(0, 0);
@@ -67,7 +67,7 @@ export default function SignerPage() {
       ...(newId ? { id: newId } : {}),
       project_id: project.id, role: preview.role, first_name: preview.first_name, last_name: preview.last_name,
       dob: preview.dob, is_minor: preview.is_minor, email: preview.email, phone: preview.phone,
-      signature: preview.signature, present: false,
+      extra_info: preview.extra_info || null, signature: preview.signature, present: false,
       guardian_name: preview.guardian_name || null, guardian_relation: preview.guardian_relation || null,
       guardian_phone: preview.guardian_phone || null, guardian_signature: preview.guardian_signature || null,
     });
@@ -106,6 +106,8 @@ export default function SignerPage() {
         <h1>Inscription</h1>
         <div className="sub">Remplis tes informations et signe directement sur ton écran. Ça prend 1 minute.</div>
 
+        {project.presentation && <div className="presprev">{project.presentation}</div>}
+
         <div className="field">
           <label className="lab">Tu participes en tant que <span className="req">*</span></label>
           <div className="seg">
@@ -126,6 +128,10 @@ export default function SignerPage() {
         <div className="row2">
           <div className="field"><label className="lab">Email <span className="req">*</span></label><input type="email" value={f.email} onChange={(e) => upd('email', e.target.value)} /></div>
           <div className="field"><label className="lab">Téléphone <span className="req">*</span></label><input type="tel" value={f.phone} onChange={(e) => upd('phone', e.target.value)} /></div>
+        </div>
+        <div className="field">
+          <label className="lab">Information complémentaire <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(facultatif)</span></label>
+          <textarea value={f.extra_info} onChange={(e) => upd('extra_info', e.target.value)} placeholder="Tout ce qui peut nous être utile : taille de costume, contrainte horaire, allergie, expérience, lien Instagram…" />
         </div>
 
         <div className="consent">
@@ -179,6 +185,10 @@ export default function SignerPage() {
               <div className="docrow"><span>Email</span><b>{preview.email}</b></div>
               <div className="docrow"><span>Téléphone</span><b>{preview.phone}</b></div>
             </div>
+
+            {preview.extra_info && (
+              <div className="docsec"><div className="docrow"><span>Info complémentaire</span><b style={{ maxWidth: '60%', whiteSpace: 'pre-wrap' }}>{preview.extra_info}</b></div></div>
+            )}
 
             <div className="doctxt">{CONSENT_TEXT}</div>
 

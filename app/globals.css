@@ -65,6 +65,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .submit:disabled{opacity:.4;}
 .err{color:var(--bad);font-size:13px;margin-top:10px;}
 .projchip{display:inline-flex;align-items:center;gap:8px;background:rgba(0,255,210,.1);border:1px solid var(--turq);color:var(--turq);border-radius:99px;padding:7px 14px;font-weight:600;font-size:13px;}
+.presprev{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--turq);border-radius:12px;padding:16px;margin-bottom:22px;font-size:13.5px;line-height:1.6;color:var(--text);white-space:pre-wrap;}
 .backlink{display:inline-block;color:var(--muted);font-size:13px;margin-top:8px;cursor:pointer;background:none;border:none;}
 .btn-prim{width:100%;padding:13px;background:var(--turq);color:#0A0A09;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;}
 .createbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:22px;}

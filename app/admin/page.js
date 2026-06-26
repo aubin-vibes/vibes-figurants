@@ -20,12 +20,12 @@ export default function Admin() {
   const [toast, setToast] = useState('');
   // create form
   const [showCreate, setShowCreate] = useState(true);
-  const [np, setNp] = useState({ name: '', slug: '', date: '', location: '', instructions: '' });
+  const [np, setNp] = useState({ name: '', slug: '', date: '', location: '', presentation: '', instructions: '' });
   const [projErr, setProjErr] = useState('');
-  // édition des instructions d'un projet existant
-  const [instrEdit, setInstrEdit] = useState(null); // id du projet en cours d'édition
-  const [instrText, setInstrText] = useState('');
-  const [instrSaving, setInstrSaving] = useState(false);
+  // édition d'un champ texte d'un projet existant (présentation / instructions)
+  const [edit, setEdit] = useState(null); // { id, field }
+  const [editText, setEditText] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
   const [sendingId, setSendingId] = useState(null); // figurant dont le mail est en cours d'envoi
   // onglet Photo
   const [photoSlug, setPhotoSlug] = useState('__all');
@@ -65,23 +65,24 @@ export default function Admin() {
     if (!name) return setProjErr('Donne un nom au projet.');
     if (!slug) return setProjErr('Choisis un lien (slug).');
     if (projects.some((p) => p.slug === slug)) return setProjErr('Ce lien existe déjà.');
-    const { error } = await supabase.from('projects').insert({ name, slug, shoot_date: np.date || null, location: np.location || null, instructions: np.instructions || null });
+    const { error } = await supabase.from('projects').insert({ name, slug, shoot_date: np.date || null, location: np.location || null, presentation: np.presentation || null, instructions: np.instructions || null });
     if (error) return setProjErr("Erreur : " + error.message);
-    setNp({ name: '', slug: '', date: '', location: '', instructions: '' });
+    setNp({ name: '', slug: '', date: '', location: '', presentation: '', instructions: '' });
     flash('Projet créé'); await refresh();
   }
 
-  function openInstr(p) {
-    if (instrEdit === p.id) { setInstrEdit(null); return; }
-    setInstrEdit(p.id); setInstrText(p.instructions || '');
+  function openEdit(p, field) {
+    if (edit && edit.id === p.id && edit.field === field) { setEdit(null); return; }
+    setEdit({ id: p.id, field }); setEditText(p[field] || '');
   }
-  async function saveInstr(p) {
-    setInstrSaving(true);
-    const { error } = await supabase.from('projects').update({ instructions: instrText || null }).eq('id', p.id);
-    setInstrSaving(false);
+  async function saveEdit(p) {
+    const field = edit.field;
+    setEditSaving(true);
+    const { error } = await supabase.from('projects').update({ [field]: editText || null }).eq('id', p.id);
+    setEditSaving(false);
     if (error) { flash('Erreur : ' + error.message); return; }
-    setProjects((arr) => arr.map((x) => (x.id === p.id ? { ...x, instructions: instrText || null } : x)));
-    setInstrEdit(null); flash('Instructions enregistrées');
+    setProjects((arr) => arr.map((x) => (x.id === p.id ? { ...x, [field]: editText || null } : x)));
+    setEdit(null); flash('Enregistré');
   }
 
   async function addPhotoPerson() {
@@ -191,6 +192,9 @@ export default function Admin() {
                   <div className="field"><label className="lab">Date de tournage</label><input type="date" value={np.date} onChange={(e) => setNp({ ...np, date: e.target.value })} /></div>
                   <div className="field"><label className="lab">Lieu</label><input value={np.location} onChange={(e) => setNp({ ...np, location: e.target.value })} placeholder="ex. Jean Louis Le Saloon" /></div>
                 </div>
+                <div className="field"><label className="lab">Présentation du projet</label>
+                  <textarea value={np.presentation} onChange={(e) => setNp({ ...np, presentation: e.target.value })} placeholder="Pitch du projet, ambiance, infos clés… (affiché en haut du formulaire, avant le consentement)" />
+                  <div className="linkprev">Affiché aux figurants en haut du formulaire d'inscription.</div></div>
                 <div className="field"><label className="lab">Instructions de tournage</label>
                   <textarea value={np.instructions} onChange={(e) => setNp({ ...np, instructions: e.target.value })} placeholder="Heure d'appel, adresse précise, tenue/costume, contact sur place, parking… (envoyé automatiquement par mail aux figurants)" />
                   <div className="linkprev">Ce texte est inséré dans le mail de confirmation reçu par chaque figurant du projet.</div></div>
@@ -213,13 +217,17 @@ export default function Admin() {
                   <div className="pjbtns">
                     <a className="mini" style={{ textAlign: 'center' }} href={'/signer/' + p.slug} target="_blank" rel="noreferrer">Aperçu formulaire</a>
                     <button className="mini" onClick={() => { setFilterSlug(p.slug); setTab('suivi'); }}>Voir le suivi</button>
-                    <button className={'mini' + (p.instructions ? ' turq' : '')} onClick={() => openInstr(p)}>{instrEdit === p.id ? 'Fermer' : (p.instructions ? '✎ Instructions' : '+ Instructions')}</button>
+                    <button className={'mini' + (p.presentation ? ' turq' : '')} onClick={() => openEdit(p, 'presentation')}>{p.presentation ? '✎ Présentation' : '+ Présentation'}</button>
+                    <button className={'mini' + (p.instructions ? ' turq' : '')} onClick={() => openEdit(p, 'instructions')}>{p.instructions ? '✎ Instructions' : '+ Instructions'}</button>
                   </div>
-                  {instrEdit === p.id && (
+                  {edit && edit.id === p.id && (
                     <div className="instrbox">
-                      <label className="lab">Instructions de tournage (envoyées par mail aux figurants)</label>
-                      <textarea value={instrText} onChange={(e) => setInstrText(e.target.value)} placeholder="Heure d'appel, adresse précise, tenue/costume, contact sur place, parking…" />
-                      <button className="btn-prim" disabled={instrSaving} onClick={() => saveInstr(p)}>{instrSaving ? 'Enregistrement…' : 'Enregistrer les instructions'}</button>
+                      <label className="lab">{edit.field === 'presentation' ? 'Présentation du projet (haut du formulaire)' : 'Instructions de tournage (mail aux figurants)'}</label>
+                      <textarea value={editText} onChange={(e) => setEditText(e.target.value)} placeholder={edit.field === 'presentation' ? 'Pitch, ambiance, infos clés…' : "Heure d'appel, adresse, tenue, contact sur place…"} />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn-prim" disabled={editSaving} onClick={() => saveEdit(p)}>{editSaving ? 'Enregistrement…' : 'Enregistrer'}</button>
+                        <button className="backlink" style={{ marginTop: 0 }} onClick={() => setEdit(null)}>Annuler</button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -261,6 +269,7 @@ export default function Admin() {
                   {r.is_minor && <span className="minorbadge">MINEUR</span>}
                 </div>
                 <div className="meta"><span>Cession <b style={{ color: 'var(--turq)' }}>✓ signée</b></span><span>{r.phone}</span></div>
+                {r.extra_info && <div className="meta"><span style={{ whiteSpace: 'pre-wrap' }}>📝 {r.extra_info}</span></div>}
                 <div className="actions">
                   <button className={'pres' + (r.present ? ' here' : '')} onClick={() => togglePresent(r)}>{r.present ? '✓ Présent·e' : 'Marquer présent·e'}</button>
                   <button className="iconbtn" onClick={() => setModal(r)}>Signature</button>
@@ -338,6 +347,7 @@ export default function Admin() {
           <div className="box">
             <h3>{modal.first_name} {modal.last_name}</h3>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>{modal.role} · né·e le {modal.dob}</div>
+            {modal.extra_info && <div style={{ fontSize: 13, color: 'var(--text)', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', marginBottom: 8, whiteSpace: 'pre-wrap' }}><b style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.5px' }}>Info complémentaire</b><br />{modal.extra_info}</div>}
             <div className="siglabel">Signature figurant·e</div>
             <div className="sigimg"><img src={modal.signature} alt="signature" /></div>
             {modal.guardian_signature && (<>
