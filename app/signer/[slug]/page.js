@@ -60,21 +60,27 @@ export default function SignerPage() {
   async function confirmSubmit() {
     if (!preview) return;
     setErr(''); setSaving(true);
-    const { data: inserted, error } = await supabase.from('figurants').insert({
+    // On génère l'id côté client : le public peut INSÉRER mais pas RELIRE (RLS),
+    // donc on ne peut pas récupérer l'id via .select() après coup.
+    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : null;
+    const { error } = await supabase.from('figurants').insert({
+      ...(newId ? { id: newId } : {}),
       project_id: project.id, role: preview.role, first_name: preview.first_name, last_name: preview.last_name,
       dob: preview.dob, is_minor: preview.is_minor, email: preview.email, phone: preview.phone,
       signature: preview.signature, present: false,
       guardian_name: preview.guardian_name || null, guardian_relation: preview.guardian_relation || null,
       guardian_phone: preview.guardian_phone || null, guardian_signature: preview.guardian_signature || null,
-    }).select('id').single();
+    });
     if (error) { setSaving(false); setErr("Erreur d'enregistrement, réessaie."); return; }
     // Mail de confirmation (non bloquant : l'inscription est déjà enregistrée quoi qu'il arrive).
-    try {
-      await fetch('/api/confirm', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: inserted.id }),
-      });
-    } catch (_) { /* on n'empêche pas la confirmation si l'email échoue */ }
+    if (newId) {
+      try {
+        await fetch('/api/confirm', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: newId }),
+        });
+      } catch (_) { /* on n'empêche pas la confirmation si l'email échoue */ }
+    }
     setSaving(false);
     setDone(true); window.scrollTo(0, 0);
   }
