@@ -7,13 +7,17 @@ create extension if not exists "pgcrypto";
 
 -- ---------- Tables ----------
 create table if not exists projects (
-  id          uuid primary key default gen_random_uuid(),
-  slug        text unique not null,
-  name        text not null,
-  shoot_date  date,
-  location    text,
-  created_at  timestamptz default now()
+  id           uuid primary key default gen_random_uuid(),
+  slug         text unique not null,
+  name         text not null,
+  shoot_date   date,
+  location     text,
+  instructions text,        -- consignes de tournage envoyées par mail aux figurants
+  created_at   timestamptz default now()
 );
+
+-- Si la table existe déjà (base créée avant l'ajout du champ) :
+alter table projects add column if not exists instructions text;
 
 create table if not exists figurants (
   id                 uuid primary key default gen_random_uuid(),

@@ -20,8 +20,12 @@ export default function Admin() {
   const [toast, setToast] = useState('');
   // create form
   const [showCreate, setShowCreate] = useState(true);
-  const [np, setNp] = useState({ name: '', slug: '', date: '', location: '' });
+  const [np, setNp] = useState({ name: '', slug: '', date: '', location: '', instructions: '' });
   const [projErr, setProjErr] = useState('');
+  // édition des instructions d'un projet existant
+  const [instrEdit, setInstrEdit] = useState(null); // id du projet en cours d'édition
+  const [instrText, setInstrText] = useState('');
+  const [instrSaving, setInstrSaving] = useState(false);
 
   useEffect(() => {
     let sub;
@@ -54,10 +58,23 @@ export default function Admin() {
     if (!name) return setProjErr('Donne un nom au projet.');
     if (!slug) return setProjErr('Choisis un lien (slug).');
     if (projects.some((p) => p.slug === slug)) return setProjErr('Ce lien existe déjà.');
-    const { error } = await supabase.from('projects').insert({ name, slug, shoot_date: np.date || null, location: np.location || null });
+    const { error } = await supabase.from('projects').insert({ name, slug, shoot_date: np.date || null, location: np.location || null, instructions: np.instructions || null });
     if (error) return setProjErr("Erreur : " + error.message);
-    setNp({ name: '', slug: '', date: '', location: '' });
+    setNp({ name: '', slug: '', date: '', location: '', instructions: '' });
     flash('Projet créé'); await refresh();
+  }
+
+  function openInstr(p) {
+    if (instrEdit === p.id) { setInstrEdit(null); return; }
+    setInstrEdit(p.id); setInstrText(p.instructions || '');
+  }
+  async function saveInstr(p) {
+    setInstrSaving(true);
+    const { error } = await supabase.from('projects').update({ instructions: instrText || null }).eq('id', p.id);
+    setInstrSaving(false);
+    if (error) { flash('Erreur : ' + error.message); return; }
+    setProjects((arr) => arr.map((x) => (x.id === p.id ? { ...x, instructions: instrText || null } : x)));
+    setInstrEdit(null); flash('Instructions enregistrées');
   }
 
   async function togglePresent(rec) {
@@ -112,6 +129,9 @@ export default function Admin() {
                   <div className="field"><label className="lab">Date de tournage</label><input type="date" value={np.date} onChange={(e) => setNp({ ...np, date: e.target.value })} /></div>
                   <div className="field"><label className="lab">Lieu</label><input value={np.location} onChange={(e) => setNp({ ...np, location: e.target.value })} placeholder="ex. Jean Louis Le Saloon" /></div>
                 </div>
+                <div className="field"><label className="lab">Instructions de tournage</label>
+                  <textarea value={np.instructions} onChange={(e) => setNp({ ...np, instructions: e.target.value })} placeholder="Heure d'appel, adresse précise, tenue/costume, contact sur place, parking… (envoyé automatiquement par mail aux figurants)" />
+                  <div className="linkprev">Ce texte est inséré dans le mail de confirmation reçu par chaque figurant du projet.</div></div>
                 <button className="btn-prim" onClick={createProject}>Créer le projet</button>
                 {projects.length > 0 && <button className="backlink" onClick={() => setShowCreate(false)}>Annuler</button>}
                 {projErr && <div className="err">{projErr}</div>}
@@ -131,7 +151,15 @@ export default function Admin() {
                   <div className="pjbtns">
                     <a className="mini" style={{ textAlign: 'center' }} href={'/signer/' + p.slug} target="_blank" rel="noreferrer">Aperçu formulaire</a>
                     <button className="mini" onClick={() => { setFilterSlug(p.slug); setTab('suivi'); }}>Voir le suivi</button>
+                    <button className={'mini' + (p.instructions ? ' turq' : '')} onClick={() => openInstr(p)}>{instrEdit === p.id ? 'Fermer' : (p.instructions ? '✎ Instructions' : '+ Instructions')}</button>
                   </div>
+                  {instrEdit === p.id && (
+                    <div className="instrbox">
+                      <label className="lab">Instructions de tournage (envoyées par mail aux figurants)</label>
+                      <textarea value={instrText} onChange={(e) => setInstrText(e.target.value)} placeholder="Heure d'appel, adresse précise, tenue/costume, contact sur place, parking…" />
+                      <button className="btn-prim" disabled={instrSaving} onClick={() => saveInstr(p)}>{instrSaving ? 'Enregistrement…' : 'Enregistrer les instructions'}</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
