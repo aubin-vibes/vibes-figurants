@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { downloadOne, downloadAll } from '@/lib/cessionPdf';
+import { downloadOne, downloadAll, downloadEmargement } from '@/lib/cessionPdf';
 
 function slugify(s) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -76,6 +76,15 @@ export default function Admin() {
     if (error) { flash('Erreur : ' + error.message); return; }
     setProjects((arr) => arr.map((x) => (x.id === p.id ? { ...x, instructions: instrText || null } : x)));
     setInstrEdit(null); flash('Instructions enregistrées');
+  }
+
+  async function deleteFigurant(rec) {
+    if (!window.confirm(`Supprimer définitivement ${rec.first_name} ${rec.last_name} ?\nCette action est irréversible (autorisation et signature perdues).`)) return;
+    const { error } = await supabase.from('figurants').delete().eq('id', rec.id);
+    if (error) { flash('Erreur : ' + error.message); return; }
+    setFigurants((arr) => arr.filter((x) => x.id !== rec.id));
+    if (modal && modal.id === rec.id) setModal(null);
+    flash('Figurant supprimé');
   }
 
   async function resendMail(rec) {
@@ -198,7 +207,10 @@ export default function Admin() {
               <div className="stat warn"><div className="n">{total - present}</div><div className="l">Attendus</div></div>
               <div className="stat"><div className="n">{minors}</div><div className="l">Mineurs</div></div>
             </div>
-            <button className="dlall" onClick={() => downloadAll(rows, currentProject)}>⬇ Télécharger toutes les autorisations du projet</button>
+            <div className="dlrow">
+              <button className="dlall" onClick={() => downloadAll(rows, currentProject)}>⬇ Toutes les autorisations (PDF)</button>
+              <button className="dlall" onClick={() => downloadEmargement(rows, currentProject)}>⬇ Feuille d'émargement</button>
+            </div>
             <div className="field"><input placeholder="Rechercher un nom…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
 
             {rows.length === 0 ? (
@@ -216,6 +228,7 @@ export default function Admin() {
                   <button className="iconbtn" onClick={() => setModal(r)}>Signature</button>
                   <button className="iconbtn pdf" onClick={() => downloadOne(r, currentProject || projects.find((p) => p.id === r.project_id))}>PDF</button>
                   <button className="iconbtn mail" disabled={sendingId === r.id} onClick={() => resendMail(r)}>{sendingId === r.id ? '…' : '✉ Mail'}</button>
+                  <button className="iconbtn del" onClick={() => deleteFigurant(r)} title="Supprimer">🗑</button>
                 </div>
               </div>
             ))}
